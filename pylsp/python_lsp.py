@@ -234,7 +234,7 @@ class PythonLSPServer(MethodDispatcher):
 
     def capabilities(self):
         server_capabilities = {
-            'codeActionProvider': True,
+            'codeActionProvider': False,
             'codeLensProvider': {
                 'resolveProvider': False,  # We may need to make this configurable
             },
@@ -242,18 +242,18 @@ class PythonLSPServer(MethodDispatcher):
                 'resolveProvider': True,  # We could know everything ahead of time, but this takes time to transfer
                 'triggerCharacters': ['.'],
             },
-            'documentFormattingProvider': True,
+            'documentFormattingProvider': False,
             'documentHighlightProvider': True,
-            'documentRangeFormattingProvider': True,
-            'documentSymbolProvider': True,
-            'definitionProvider': True,
+            'documentRangeFormattingProvider': False,
+            'documentSymbolProvider': False,
+            'definitionProvider': False,
             'executeCommandProvider': {
                 'commands': flatten(self._hook('pylsp_commands'))
             },
             'hoverProvider': True,
-            'referencesProvider': True,
-            'renameProvider': True,
-            'foldingRangeProvider': True,
+            'referencesProvider': False,
+            'renameProvider': False,
+            'foldingRangeProvider': False,
             'signatureHelpProvider': {
                 'triggerCharacters': ['(', ',', '=']
             },
