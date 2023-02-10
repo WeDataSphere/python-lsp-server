@@ -125,7 +125,13 @@ class Workspace:
     def apply_edit(self, edit):
         return self._endpoint.request(self.M_APPLY_EDIT, {'edit': edit})
 
+    def filter_publish_diagnostics(self, diagnostics):
+        if diagnostics['range']['start']['line'] > 5:
+            return True
+
     def publish_diagnostics(self, doc_uri, diagnostics):
+        if os.path.splitext(doc_uri)[-1] == '.py' and diagnostics is not None:
+            diagnostics = list(filter(self.filter_publish_diagnostics, diagnostics))
         self._endpoint.notify(self.M_PUBLISH_DIAGNOSTICS, params={'uri': doc_uri, 'diagnostics': diagnostics})
 
     @contextmanager
