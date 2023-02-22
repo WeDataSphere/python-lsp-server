@@ -130,8 +130,11 @@ class Workspace:
             return True
 
     def publish_diagnostics(self, doc_uri, diagnostics):
-        if os.path.splitext(doc_uri)[-1] == '.py' and diagnostics is not None:
+        if os.path.splitext(doc_uri)[-1] == '.py' and diagnostics is not None and diagnostics != []:
             diagnostics = list(filter(self.filter_publish_diagnostics, diagnostics))
+            for item in diagnostics:
+                item['range']['start']['line'] = item['range']['start']['line'] - 11
+                item['range']['end']['line'] = item['range']['end']['line'] - 11
         self._endpoint.notify(self.M_PUBLISH_DIAGNOSTICS, params={'uri': doc_uri, 'diagnostics': diagnostics})
 
     @contextmanager
