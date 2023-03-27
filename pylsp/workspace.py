@@ -133,8 +133,8 @@ class Workspace:
         if os.path.splitext(doc_uri)[-1] == '.py' and diagnostics is not None and diagnostics != []:
             diagnostics = list(filter(self.filter_publish_diagnostics, diagnostics))
             for item in diagnostics:
-                item['range']['start']['line'] = item['range']['start']['line'] - 11
-                item['range']['end']['line'] = item['range']['end']['line'] - 11
+                item['range']['start']['line'] = item['range']['start']['line'] - 12
+                item['range']['end']['line'] = item['range']['end']['line'] - 12
         self._endpoint.notify(self.M_PUBLISH_DIAGNOSTICS, params={'uri': doc_uri, 'diagnostics': diagnostics})
 
     @contextmanager
