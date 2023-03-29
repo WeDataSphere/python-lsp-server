@@ -370,17 +370,19 @@ class PythonLSPServer(MethodDispatcher):
         return self._hook('pylsp_hover', doc_uri, position=position) or {'contents': ''}
 
     @_utils.debounce(LINT_DEBOUNCE_S, keyed_by='doc_uri')
-    def lint(self, python_version, doc_uri, is_saved):
+    def lint(self, textDocument, doc_uri, is_saved):
         # Since we're debounced, the document may no longer be open
         workspace = self._match_uri_to_workspace(doc_uri)
         if doc_uri in workspace.documents:
-            if python_version != 'python2':
+            if textDocument['pythonVersion'] != 'python2':
                 workspace.publish_diagnostics(
+                    textDocument,
                     doc_uri,
                     flatten(self._hook('pylsp_lint', doc_uri, is_saved=is_saved))
                 )
             else:
                 workspace.publish_diagnostics(
+                    textDocument,
                     doc_uri,
                     []
                 )
@@ -405,14 +407,14 @@ class PythonLSPServer(MethodDispatcher):
 
     def m_text_document__did_close(self, textDocument=None, **_kwargs):
         workspace = self._match_uri_to_workspace(textDocument['uri'])
-        workspace.publish_diagnostics(textDocument['uri'], [])
+        workspace.publish_diagnostics(textDocument, textDocument['uri'], [])
         workspace.rm_document(textDocument['uri'])
 
     def m_text_document__did_open(self, textDocument=None, **_kwargs):
         workspace = self._match_uri_to_workspace(textDocument['uri'])
         workspace.put_document(textDocument['uri'], textDocument['text'], version=textDocument.get('version'))
         self._hook('pylsp_document_did_open', textDocument['uri'])
-        self.lint(textDocument['pythonVersion'], textDocument['uri'], is_saved=True)
+        self.lint(textDocument, textDocument['uri'], is_saved=True)
 
     def m_text_document__did_change(self, contentChanges=None, textDocument=None, **_kwargs):
         workspace = self._match_uri_to_workspace(textDocument['uri'])
@@ -422,7 +424,7 @@ class PythonLSPServer(MethodDispatcher):
                 change,
                 version=textDocument.get('version')
             )
-        self.lint(textDocument['pythonVersion'], textDocument['uri'], is_saved=False)
+        self.lint(textDocument, textDocument['uri'], is_saved=False)
 
     def m_text_document__did_save(self, textDocument=None, **_kwargs):
         self.lint(None, textDocument['uri'], is_saved=True)
