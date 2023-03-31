@@ -125,15 +125,15 @@ class Workspace:
     def apply_edit(self, edit):
         return self._endpoint.request(self.M_APPLY_EDIT, {'edit': edit})
 
-    def filter_publish_diagnostics(self, diagnostics):
-        if diagnostics['range']['start']['line'] > 5:
+    def filter_publish_diagnostics(self, diagnostics, importLine):
+        if diagnostics['range']['start']['line'] > importLine:
             return True
 
     def publish_diagnostics(self, textDocument, doc_uri, diagnostics):
         log.info("before publish diagnostics: %s",diagnostics)
         log.info("publish diagnostics textDocument: %s",textDocument)
-        if os.path.splitext(doc_uri)[-1] == '.py' and diagnostics is not None and diagnostics != []:
-            diagnostics = list(filter(lambda x: self.filter_publish_diagnostics(x, textDocument['importLine']), diagnostics))
+        if diagnostics is not None and diagnostics != []:
+            diagnostics = list(filter(lambda x: self.filter_publish_diagnostics(x, textDocument['preLine'] - 1), diagnostics))
             log.info("after filter diagnostics: %s",diagnostics)
             for item in diagnostics:
                 item['range']['start']['line'] = item['range']['start']['line'] - textDocument['preLine']
