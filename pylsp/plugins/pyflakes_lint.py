@@ -1,6 +1,7 @@
 # Copyright 2017-2020 Palantir Technologies, Inc.
 # Copyright 2021- Python Language Server Contributors.
 
+import re
 from pyflakes import api as pyflakes_api, messages
 from pylsp import hookimpl, lsp
 
@@ -24,8 +25,13 @@ PYFLAKES_ERROR_MESSAGES = (
 def pylsp_lint(workspace, document):
     with workspace.report_progress("lint: pyflakes"):
         reporter = PyflakesDiagnosticReport(document.lines)
-        pyflakes_api.check(document.source.encode('utf-8'), document.path, reporter=reporter)
+        pyflakes_api.check(lines_convert(document.source).encode('utf-8'), document.path, reporter=reporter)
         return reporter.diagnostics
+
+
+def lines_convert(lines):
+    pattern = re.compile(r"\${(\w+)}")
+    return pattern.sub(r'"${\1}"', str(lines))
 
 
 class PyflakesDiagnosticReport:
