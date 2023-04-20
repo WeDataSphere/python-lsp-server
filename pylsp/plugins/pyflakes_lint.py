@@ -30,8 +30,8 @@ def pylsp_lint(workspace, document):
 
 
 def lines_convert(lines):
-    pattern = re.compile(r"\${(\w+)}")
-    return pattern.sub(r'"${\1}"', str(lines))
+    regex = re.compile(r"\${\w+}|\#{\w+}|\&{\w+}")
+    return re.sub(regex, lambda match: "1", lines)
 
 
 class PyflakesDiagnosticReport:
