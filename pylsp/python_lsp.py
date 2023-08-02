@@ -19,7 +19,6 @@ from ._version import __version__
 
 log = logging.getLogger(__name__)
 
-
 LINT_DEBOUNCE_S = 0.5  # 500 ms
 PARENT_PROCESS_WATCH_INTERVAL = 10  # 10 s
 MAX_WORKERS = 64
@@ -151,7 +150,7 @@ class PythonLSPServer(MethodDispatcher):
     """
 
     # pylint: disable=too-many-public-methods,redefined-builtin
-
+    M_SHOW_MESSAGE = 'window/showMessage'
     def __init__(self, rx, tx, check_parent_process=False, consumer=None):
         self.workspace = None
         self.config = None
@@ -180,6 +179,7 @@ class PythonLSPServer(MethodDispatcher):
 
         self._dispatchers = []
         self._shutdown = False
+        self._endpoint.notify(self.M_SHOW_MESSAGE, params={})
 
     def start(self):
         """Entry point for the server."""

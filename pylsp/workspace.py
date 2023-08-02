@@ -130,15 +130,12 @@ class Workspace:
             return True
 
     def publish_diagnostics(self, textDocument, doc_uri, diagnostics):
-        log.info("before publish diagnostics: %s",diagnostics)
-        log.info("publish diagnostics textDocument: %s",textDocument)
         if diagnostics is not None and diagnostics != []:
             diagnostics = list(filter(lambda x: self.filter_publish_diagnostics(x, textDocument['preLine'] - 1), diagnostics))
             log.info("after filter diagnostics: %s",diagnostics)
             for item in diagnostics:
                 item['range']['start']['line'] = item['range']['start']['line'] - textDocument['preLine']
                 item['range']['end']['line'] = item['range']['end']['line'] - textDocument['preLine']
-        log.info("after publish diagnostics: %s",diagnostics)
         self._endpoint.notify(self.M_PUBLISH_DIAGNOSTICS, params={'uri': doc_uri, 'diagnostics': diagnostics})
 
     @contextmanager
