@@ -7,6 +7,7 @@ import os
 import socketserver
 import threading
 import ujson as json
+import requests
 
 from pylsp_jsonrpc.dispatchers import MethodDispatcher
 from pylsp_jsonrpc.endpoint import Endpoint
@@ -343,6 +344,12 @@ class PythonLSPServer(MethodDispatcher):
 
     def completion_item_resolve(self, completion_item):
         doc_uri = completion_item.get('data', {}).get('doc_uri', None)
+        if completion_item['label'].startswith('aaa'):
+            completion_item['documentation'] = {
+                'kind': 'markdown',
+                'value': f'```python\n{completion_item["label"]}\n```'
+            }
+            return completion_item
         return self._hook('pylsp_completion_item_resolve', doc_uri, completion_item=completion_item)
 
     def definitions(self, doc_uri, position):
@@ -418,12 +425,45 @@ class PythonLSPServer(MethodDispatcher):
 
     def m_text_document__did_change(self, contentChanges=None, textDocument=None, **_kwargs):
         workspace = self._match_uri_to_workspace(textDocument['uri'])
+        line_position = 0
+        chang_text = ""
         for change in contentChanges:
             workspace.update_document(
                 textDocument['uri'],
                 change,
                 version=textDocument.get('version')
             )
+            if change['rangeLength'] == 0:
+                chang_text = change['text']
+                start_position = change['range']['start']
+                line_position = start_position['line']
+        if len(contentChanges) == 1:
+            document_content = textDocument.lines()
+            line_content = document_content[line_position].strip()
+            item_text = ""
+            if chang_text == '\n' and line_content.startswith('#ai '):
+                query = line_content[4:]
+                item_text = requestLLM(textDocument['llm_url'], query, "none", textDocument['llm_app_key'], textDocument['llm_app_user'])
+            elif chang_text == ' ' or chang_text == '=' or chang_text == '(' or chang_text == '[' or chang_text == '{':
+                query = '\n'.join(document_content[:line_position + 1])
+                suffix_query = ""
+                if len(document_content) > line_position + 1:
+                    suffix_query = '\n'.join(document_content[line_position + 1:])
+                item_text = requestLLM(textDocument['llm_url'], query, suffix_query, textDocument['llm_app_key'], textDocument['llm_app_user'])
+            if len(item_text) > 0:
+                item = {
+                    'label': item_text,
+                    'kind': 3,
+                    'sortText': 'aaaa' + item_text,
+                    'data': {
+                        'doc_uri': textDocument['uri']
+                    }
+                }
+                return {
+                    'isIncomplete': False,
+                    'items': [item]
+                }
+
         self.lint(textDocument, textDocument['uri'], is_saved=False)
 
     def m_text_document__did_save(self, textDocument=None, **_kwargs):
@@ -558,3 +598,30 @@ def flatten(list_of_lists):
 
 def merge(list_of_dicts):
     return {k: v for dictionary in list_of_dicts for k, v in dictionary.items()}
+
+def requestLLM(url, query, suffix_query, app_key, app_user):
+    data = {
+        "input": {
+            "query": query,
+            "suffix_query": suffix_query,
+            "language": "Python"
+        },
+        "response_mode": "blocking",
+        "user": app_user
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {app_key}"
+    }
+    try:
+        result = requests.post(url, data=data, headers=headers)
+        if result.ok() and result.json():
+            result_json = result.json()
+            data_json = result_json['data']
+            text = data_json['outputs']['text']
+            return text
+        else:
+            log.error("query %s to LLM %s failed. result: %s", query, url, result.text)
+    except Exception as e:
+        log.error("query %s to LLM %s failed. Error: %s", query, url, str(e))
+    return ""
