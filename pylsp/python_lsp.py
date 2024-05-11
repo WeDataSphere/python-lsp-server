@@ -426,6 +426,7 @@ class PythonLSPServer(MethodDispatcher):
     def m_text_document__did_change(self, contentChanges=None, textDocument=None, **_kwargs):
         workspace = self._match_uri_to_workspace(textDocument['uri'])
         line_position = 0
+        character_position = 0
         chang_text = ""
         for change in contentChanges:
             workspace.update_document(
@@ -437,18 +438,20 @@ class PythonLSPServer(MethodDispatcher):
                 chang_text = change['text']
                 start_position = change['range']['start']
                 line_position = start_position['line']
+                character_position = start_position['character']
         if len(contentChanges) == 1:
-            document_content = textDocument.lines()
+            document_content = workspace.get_document(textDocument['uri']).lines
             line_content = document_content[line_position].strip()
             item_text = ""
             if chang_text == '\n' and line_content.startswith('#ai '):
                 query = line_content[4:]
                 item_text = requestLLM(textDocument['llm_url'], query, "none", textDocument['llm_app_key'], textDocument['llm_app_user'])
-            elif chang_text == ' ' or chang_text == '=' or chang_text == '(' or chang_text == '[' or chang_text == '{':
-                query = '\n'.join(document_content[:line_position + 1])
+            elif chang_text == ' ' or chang_text == '=' or chang_text == '()' or chang_text == '[]' or chang_text == '{}':
+                query = ''.join(document_content[:line_position])
+                query = query + document_content[line_position][0:character_position+1]
                 suffix_query = ""
                 if len(document_content) > line_position + 1:
-                    suffix_query = '\n'.join(document_content[line_position + 1:])
+                    suffix_query = document_content[line_position][character_position+1:] + ''.join(document_content[line_position + 1:])
                 item_text = requestLLM(textDocument['llm_url'], query, suffix_query, textDocument['llm_app_key'], textDocument['llm_app_user'])
             if len(item_text) > 0:
                 item = {
@@ -459,10 +462,10 @@ class PythonLSPServer(MethodDispatcher):
                         'doc_uri': textDocument['uri']
                     }
                 }
-                return {
+                self._endpoint.notify('textDocument/llmSuggestion', {
                     'isIncomplete': False,
                     'items': [item]
-                }
+                })
 
         self.lint(textDocument, textDocument['uri'], is_saved=False)
 
@@ -601,7 +604,7 @@ def merge(list_of_dicts):
 
 def requestLLM(url, query, suffix_query, app_key, app_user):
     data = {
-        "input": {
+        "inputs": {
             "query": query,
             "suffix_query": suffix_query,
             "language": "Python"
@@ -613,13 +616,17 @@ def requestLLM(url, query, suffix_query, app_key, app_user):
         "Content-Type": "application/json",
         "Authorization": f"Bearer {app_key}"
     }
+    log.info(f"request LLM with url {url} with data: {data}.")
     try:
-        result = requests.post(url, data=data, headers=headers)
-        if result.ok() and result.json():
+        result = requests.post(url, json=data, headers=headers)
+        if result.ok and result.json():
             result_json = result.json()
             data_json = result_json['data']
-            text = data_json['outputs']['text']
-            return text
+            if data_json['status'] == 'failed':
+                log.error("query %s to LLM %s failed. error from llm: %s", query, url, data_json['error'])
+            else:
+                text = data_json['outputs']['text']
+                return text
         else:
             log.error("query %s to LLM %s failed. result: %s", query, url, result.text)
     except Exception as e:
