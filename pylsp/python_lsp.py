@@ -287,7 +287,8 @@ class PythonLSPServer(MethodDispatcher):
         self.root_uri = rootUri
         self.config = config.Config(rootUri, initializationOptions or {},
                                     processId, _kwargs.get('capabilities', {}))
-        self.workspace = Workspace(rootUri, self._endpoint, self.config)
+        environment_path = _kwargs.get("environmentPath")
+        self.workspace = Workspace(rootUri, self._endpoint, self.config, environment_path=environment_path)
         self.workspaces[rootUri] = self.workspace
         if workspaceFolders:
             for folder in workspaceFolders:

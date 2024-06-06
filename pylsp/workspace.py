@@ -40,7 +40,7 @@ class Workspace:
     M_APPLY_EDIT = 'workspace/applyEdit'
     M_SHOW_MESSAGE = 'window/showMessage'
 
-    def __init__(self, root_uri, endpoint, config=None):
+    def __init__(self, root_uri, endpoint, config=None,environment_path=None):
         self._config = config
         self._root_uri = root_uri
         self._endpoint = endpoint
@@ -50,6 +50,7 @@ class Workspace:
 
         # Cache jedi environments
         self._environments = {}
+        self._environment_path = environment_path
 
         # Whilst incubating, keep rope private
         self.__rope = None
@@ -359,14 +360,14 @@ class Document:
     @lock
     def jedi_script(self, position=None, use_document_path=False):
         extra_paths = []
-        environment_path = None
+        environment_path = self._workspace._environment_path
         env_vars = None
 
         if self._config:
             jedi_settings = self._config.plugin_settings('jedi', document_path=self.path)
             jedi.settings.auto_import_modules = jedi_settings.get('auto_import_modules',
                                                                   DEFAULT_AUTO_IMPORT_MODULES)
-            environment_path = jedi_settings.get('environment')
+            environment_path = jedi_settings.get('environment', environment_path)
             extra_paths = jedi_settings.get('extra_paths') or []
             env_vars = jedi_settings.get('env_vars')
 
@@ -375,7 +376,7 @@ class Document:
         if env_vars is None:
             env_vars = os.environ.copy()
         env_vars.pop('PYTHONPATH', None)
-
+        log.debug(f"jedi find environment path is {environment_path}")
         environment = self.get_enviroment(environment_path, env_vars=env_vars) if environment_path else None
         sys_path = self.sys_path(environment_path, env_vars=env_vars) + extra_paths
         project_path = self._workspace.root_path
